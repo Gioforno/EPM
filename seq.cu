@@ -13,7 +13,7 @@ int cpu_calculate_z_slice(
     const int z,        // What z slice we are calculating
     const Particle* ps, // Particles of the system
     const int n         // Number of particles
-)        
+    )        
 {
 
     std::cout<<"Starting CPU computation"<<std::endl;
