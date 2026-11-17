@@ -16,12 +16,13 @@ void kernelMultTile(float* d_pmap, int width, int height, int z, Particle* d_ps,
 
     int row = blockIdx.y * TILE + threadIdx.y;
     int col = blockIdx.x * TILE + threadIdx.x;
-
+    int t_id = threadIdx.y * blockDim.x + threadIdx.x;
+    
     float result = 0.0f;
 
 //building of batch of the particles to be parallelized
     for (int t = 0; t <n; t += TILE) {  //process particles in batch
-        int t_id = threadIdx.y * blockDim.x + threadIdx.x;
+        
 
         if(t_id < TILE && t + t_id < n) {
             t_ps[t_id] = d_ps[t + t_id];
@@ -37,25 +38,21 @@ void kernelMultTile(float* d_pmap, int width, int height, int z, Particle* d_ps,
             //parallelized computation of result
             for (int i = 0; i < batchCount; i++) {
 
-                    float dx = (float)col - d_ps[i].x;
-                    float dy = (float)row - d_ps[i].y;
-                    float dz = (float)z - d_ps[i].z;
+                    float dx = (float)col - t_ps[i].x;
+                    float dy = (float)row - t_ps[i].y;
+                    float dz = (float)z - t_ps[i].z;
 
                     float d = (dx*dx + dy*dy + dz*dz);
-                    result += d_ps[i].q / d;
+                    result += t_ps[i].q / d;
                 }
         }
-
-        //need to wait each batch to write into pmap to no overwrite data
         __syncthreads();
-        
-        if(row < height && col < width){
-            d_pmap[width * row + col] = result;
-        }
-
-
     }
     
+    if(row < height && col < width){
+            d_pmap[width * row + col] = result;
+    }
+
 
     
 }
@@ -84,7 +81,7 @@ float gpuT_calculate_z_slice(
 
 //device initialization
     dim3 DimBlock(TILE, TILE);
-    dim3 DimGrid((height + TILE - 1) / TILE, (height + TILE - 1) / TILE);
+    dim3 DimGrid((width + TILE - 1) / TILE, (height + TILE - 1) / TILE);
 
 //device execution
     std::cout<<"Starting GPU naive computation"<<std::endl;

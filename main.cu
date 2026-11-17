@@ -15,27 +15,14 @@
     move on jetson OK
     implement timing check OK
 
-    implement basic parallel code
+    implement basic parallel code OK
 
 
-    implement enhanced parallel code
+    implement enhanced parallel code OK
 
 
     implement spatial binning
 */
-
-void checkMap(float* pmapA, float* pmapB, int W, int H) {
-    if (epm_check_pmap_slices(pmapA, pmapB, W, H)) {
-            printf("Potential maps A and B are approximately equal.\n");
-    } else {
-        printf("Potential maps A and B are NOT approximately equal.\n");
-        for (int i = 0; i < W * H; i++) {
-            if (pmapA[i] != pmapB[i]) {
-                printf("Difference at index %d: pmapA=%f, pmapB=%f\n", i,pmapA[i], pmapB[i]);
-            }
-        }
-    }
-}
 
 int main() {
     
@@ -82,8 +69,26 @@ int main() {
 
 
     // Check if the potential maps are approximately equal
-    checkMap(pmapA, pmapB, W, H);
-    checkMap(pmapA, pmapC, W, H);
+        if (epm_check_pmap_slices(pmapA, pmapB, W, H)) {
+            printf("Potential maps A and B are approximately equal.\n");
+    } else {
+        printf("Potential maps A and B are NOT approximately equal.\n");
+        for (int i = 0; i < W * H; i++) {
+            if (pmapA[i] != pmapB[i]) {
+                printf("Difference at index %d: pmapA=%f, pmapB=%f\n", i,pmapA[i], pmapB[i]);
+            }
+        }
+    }
+    if (epm_check_pmap_slices(pmapA, pmapC, W, H)) {
+            printf("Potential maps A and C are approximately equal.\n");
+    } else {
+        printf("Potential maps A and C are NOT approximately equal.\n");
+        for (int i = 0; i < W * H; i++) {
+            if (pmapA[i] != pmapC[i]) {
+                printf("Difference at index %d: pmapA=%f, pmapC=%f\n", i,pmapA[i], pmapC[i]);
+            }
+        }
+    }
 
 
     delete[] particles;
