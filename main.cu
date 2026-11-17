@@ -45,12 +45,12 @@ int main() {
     const int Z = 32;
 
     int cpu_time = cpu_calculate_z_slice(pmapA, W, H, Z, particles, N);
-    std::cout << "CPU Time: " << cpu_time << " ms" << std::endl;
+    std::cout << "CPU Time: " << cpu_time << " ms\n" << std::endl;
 
-    int gpuN_time = gpuN_calculate_z_slice(pmapB, W, H, Z, particles,N);
-    std::cout << "CPU Time: " << gpuN_time << " ms" << std::endl;
+    float gpuN_time = gpuN_calculate_z_slice(pmapB, W, H, Z, particles,N);
+    std::cout << "GPU naive time: " << gpuN_time << " ms\n" << std::endl;
 
-    std::cout << "speedup gpu naive " << cpu_time/gpuN_time << " ms" << std::endl;
+    std::cout << "speedup GPU naive x" << (int)cpu_time/gpuN_time << std::endl;
 
     // Check if the potential maps are approximately equal
     if (epm_check_pmap_slices(pmapA, pmapB, W, H)) {

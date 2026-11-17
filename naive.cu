@@ -13,14 +13,14 @@ void kernelMult(float* d_pmap, int width, int height, int z, Particle* d_ps, int
     int col = blockIdx.x * blockDim.x + threadIdx.x;
 
 //computation of the potential
-    if (row < width && col < height) {
+    if (row < height && col < width) {
 
         float result = 0.0f;
 
         for (int i = 0; i < n; i++) {
 
-                float dx = (float)row - d_ps[i].x;
-                float dy = (float)col - d_ps[i].y;
+                float dx = (float)col - d_ps[i].x;
+                float dy = (float)row - d_ps[i].y;
                 float dz = (float)z - d_ps[i].z;
 
                 float d = (dx*dx + dy*dy + dz*dz);
@@ -33,54 +33,56 @@ void kernelMult(float* d_pmap, int width, int height, int z, Particle* d_ps, int
     
 }
 
-int gpuN_calculate_z_slice(
+float gpuN_calculate_z_slice(
     float* pmap,        // The potential map slice (width x height) 
     const int width,    // Width of the slice
     const int height,   // Height of the slice
     const int z,        // What z slice we are calculating
     const Particle* ps, // Particles of the system
-    const int n
-    )        // Number of particles
+    const int n         // Number of particles
+    )        
 {
     cudaEvent_t start, stop;
     
 //mem device allocation
     float* d_pmap;   
-    cudaMalloc(&d_pmap, (width*height) * sizeof(int));
+    cudaMalloc(&d_pmap, (width*height) * sizeof(float));
 
     Particle* d_ps;   
-    cudaMalloc(&d_ps, sizeof(Particle));
+    cudaMalloc(&d_ps, n*sizeof(Particle));
 
 //copy data from memory to device
-    cudaMemcpy(d_pmap, pmap, (width*height) * sizeof(int), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_ps, ps, sizeof(Particle), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_ps, ps, n*sizeof(Particle), cudaMemcpyHostToDevice);
 
 
 //device initialization
-    dim3 DimGrid((width*height)/256, 1, 1);
-    if ((width*height)%256) DimGrid.x++;
-    dim3 DimBlock(256, 1, 1);
+    dim3 DimBlock(16, 16);
+    dim3 DimGrid((width  + DimBlock.x - 1) / DimBlock.x,
+                (height + DimBlock.y - 1) / DimBlock.y);
 
 //device execution
-
-    std::cout<<"Starting gpu naive computation"<<std::endl;
+    std::cout<<"Starting GPU naive computation"<<std::endl;
     cudaEventCreate(&start);
-
-    kernelMult<<<DimGrid,DimBlock>>>(d_pmap,width,height,z,d_ps,n);
-
     cudaEventCreate(&stop);
+
+    cudaEventRecord(start);
+    kernelMult<<<DimGrid,DimBlock>>>(d_pmap,width,height,z,d_ps,n);
+    cudaEventRecord(stop);
+
+    cudaEventSynchronize(stop);
+    
 
     float time = 0;
     cudaEventElapsedTime(&time, start, stop);
 
 //retrive data to the host
-    cudaMemcpy(pmap, d_pmap, (width*height) * sizeof(int), cudaMemcpyDeviceToHost);
-
-//deallocation host memory 
+    cudaMemcpy(pmap, d_pmap, (width*height) * sizeof(float), cudaMemcpyDeviceToHost);
 
 //deallocation device memory
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
     cudaFree(d_pmap);
     cudaFree(d_ps);
-    return (int)time;
+    return time;
 
 }
