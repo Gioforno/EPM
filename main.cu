@@ -50,7 +50,7 @@ int main() {
     float gpuN_time = gpuN_calculate_z_slice(pmapB, W, H, Z, particles,N);
     std::cout << "GPU naive time: " << gpuN_time << " ms\n" << std::endl;
 
-    std::cout << "speedup GPU naive x" << (int)cpu_time/gpuN_time << std::endl;
+    std::cout << "speedup GPU naive x" << cpu_time/gpuN_time << "\n" << std::endl;
 
     // Check if the potential maps are approximately equal
     if (epm_check_pmap_slices(pmapA, pmapB, W, H)) {
