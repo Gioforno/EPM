@@ -5,55 +5,101 @@
 #include <chrono>
 #include <iomanip>
 #include <iostream>
+#include <cmath>
 #include <cuda_runtime.h>
 
-void computeKey(Partcile* d_ps,int height, int width, int z, int n) {
-    if(i > n) return;
+void computeKey(
+    const Particle* d_ps,
+    int height, 
+    int width, 
+    int z,
+    int n,
+    int* keys, 
+    int* idx,
+    int dimCell
+    ) 
+     {
     
-    Particle p = d_ps[i];
+    for(int i=0; i<n;i++) {
+        Particle p = d_ps[i];
 
-    int cx = floor(p.x/dimCell);
-    int cy = floor(p.y/dimCell);
+        int cx = floor(p.x/dimCell);
+        int cy = floor(p.y/dimCell);
 
-    keys[i] = (z*height + cy)*width+cx;
-    idx[i] = i;
+        keys[i] = (z*height + cy)*width+cx;
+        idx[i] = i;
+    }
+    
+}
+void sortKeys(
+    int* keys,
+    int* idx, 
+    int numCell, 
+    int* cellStart, 
+    int* sortIdx,
+    int n
+) 
+    {
+    int count[n];
+    for(int i=0;i<n;++i){
+        count[keys[i]+1]++;
+    }
+    for(int j = 0; j<numCell; ++j){
+        count[j+1] = count[j] + count[j+1];
+    }
 
+    cellStart = count;
+
+    for (int i = 0; i < n; ++i) {
+        sortIdx[count[keys[i]]++] = i;
+    }  
 }
 
-void kernelReord(
-    
-) {
-
-}
-vodi kernelBuildRange(
-    
-) {
-
+void reorderParticle(Particle* o_ps, const Particle* ps, int* idx,int n) {
+    for(int i=0; i<n; i++) {
+        o_ps[i] = ps[idx[i]];
+    }
 }
 
 __global__ 
-void kernelMult(float* d_pmap, int width, int height, int z, Particle* d_ps, int n, int* keys, int* idx, int dimCell) {
+void kernelMult(float* d_pmap, int width, int height, int z, Particle* d_ps, int n, int dimCell, int* cellStart) {
 
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
 
+//computation of the potential
+    if (row < height && col < width) {
 
+        float result = 0.0f;
 
+        for (int i = 0; i < n; i++) {
+
+            int cx = floorf(col/dimCell);
+            int cy = floorf(row/dimCell);
+
+            int r_co2 = dimCell*dimCell; 
+
+            for(int ny=max(cy-1, 0); ny<min(cy+1, height-1); ny++) {
+                int s = cellStart[ny*width + max(cx-1, 0)];
+                int f = cellStart[ny*width + min(cx+1, width-1) + 1];
+                for (int j=s;j<f;j++) {
+                    
+                    float dx = (float)col - d_ps[j].x;
+                    float dy = (float)row - d_ps[j].y;
+                    float dz = (float)z - d_ps[j].z;
+                    float d2 = dx*dx + dy*dy + dz*dz;
+                    if(d2 > r_co2) {
+                        continue;
+                    }
+                    float d = sqrtf(d);
+
+                    result += d_ps[i].q / d;
+                }
+            }
+            d_pmap[width * row + col] = result;
+        }
+    }
 }
-
-
-
-
-
-void sortKeys(int* keys, int* idx) {
-
-}
-
-
-
-
-
-
-
-
 
 float gpuC_calculate_z_slice(
     float* pmap,        // The potential map slice (width x height) 
@@ -64,22 +110,38 @@ float gpuC_calculate_z_slice(
     const int n         // Number of particles
     )        
 {
+    cudaEvent_t start, stop;
     int cutoff = 3;   //range of the cutoff
+    int keys[n];
+    int idx[n];
+    int sortIdx[n];
+    
+    int dimCell = cutoff*(1+10-6);  //avoid division by 0
+    int numCells = (width/dimCell)*(height/dimCell);
+    int cellStart[numCells+1];
+    Particle* o_ps;
 
-    dimCell = cutoff*(1+10-6);  //avoid division by 0
+    auto startC = std::chrono::high_resolution_clock::now();
 
-    numCells = width*height;
+    computeKey(ps,height,width,z,n,keys,idx,dimCell);
+
+    sortKeys(keys, idx, numCells, cellStart, sortIdx,n);
+
+    reorderParticle(o_ps,ps,idx,n);
+
+    auto stopC = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stopC - startC);
 
     //mem device allocation
-    Particle* d_ps;   
-    cudaMalloc(&d_ps, n*sizeof(Particle));
-    cudaMemcpy(d_ps, ps, n*sizeof(Particle), cudaMemcpyHostToDevice);
-
     Particle* od_ps;   
     cudaMalloc(&od_ps, n*sizeof(Particle));
+    cudaMemcpy(od_ps, o_ps, n*sizeof(Particle), cudaMemcpyHostToDevice);
 
-    cellStart[numCells+1];
-    cudaMalloc(&cellStart, (numCells+1)*sizeof(int));
+
+    int* d_cellStart;
+    cudaMalloc(&d_cellStart, (numCells+1)*sizeof(int));
+    cudaMemcpy(d_cellStart, cellStart, (numCells+1)*sizeof(int), cudaMemcpyHostToDevice);
+
 
     float* d_pmap;   
     cudaMalloc(&d_pmap, (width*height) * sizeof(float));
@@ -98,14 +160,7 @@ float gpuC_calculate_z_slice(
 
     cudaEventRecord(start);
 
-    createKeys(d_ps,height,width,z,n);
-
-    sortByKeys(keys, idx);
-
-    reordParticle()
-    createRanges()
-
-    kernelMultCutoff<<<DimGrid,DimBlock>>>(d_pmap,width,height,z,d_ps,n,keys,idx,dimCell);
+    kernelMult<<<DimGrid,DimBlock>>>(d_pmap,width,height,z,od_ps,n,dimCell,cellStart);
     cudaEventRecord(stop);
 
     cudaEventSynchronize(stop);
@@ -121,11 +176,9 @@ float gpuC_calculate_z_slice(
     cudaEventDestroy(start);
     cudaEventDestroy(stop);
     cudaFree(d_pmap);
-    cudaFree(d_ps);
-    cudaFree(keys);
-    cudaFree(idx);
     cudaFree(od_ps);
     cudaFree(cellStart);
-    return time;
+
+    return duration.count()+time;
 
 }

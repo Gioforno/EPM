@@ -4,6 +4,7 @@
 #include "seq.cu"
 #include "naive.cu"
 #include "tiled.cu"
+#include "cutoff.cu"
 
 #include <cstdio>
 #include <chrono>
@@ -63,7 +64,12 @@ int main() {
 
 //GPU SPATIAL BINING COMPUTATION
 
+    float gpuC_time = gpuC_calculate_z_slice(pmapC, W, H, Z, particles,N);
+    std::cout << "GPU cutoff time: " << gpuC_time << " ms\n" << std::endl;
 
+    std::cout << "speedup GPU cutoff vs CPU x" << cpu_time/gpuC_time << "\n" << std::endl;
+    std::cout << "speedup GPU cutoff vs GPU naive x" << gpuN_time/gpuC_time << "\n" << std::endl;
+    std::cout << "speedup GPU cutoff vs GPU tiled x" << gpuT_time/gpuC_time << "\n" << std::endl;
 
 
     // Check if the potential maps are approximately equal
