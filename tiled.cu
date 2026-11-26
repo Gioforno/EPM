@@ -42,7 +42,7 @@ void kernelMultTile(float* d_pmap, int width, int height, int z, Particle* d_ps,
                     float dy = (float)row - t_ps[i].y;
                     float dz = (float)z - t_ps[i].z;
 
-                    float d = (dx*dx + dy*dy + dz*dz);
+                    float d = sqrtf(dx*dx + dy*dy + dz*dz);
                     result += t_ps[i].q / d;
                 }
         }

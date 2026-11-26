@@ -61,8 +61,6 @@ int main() {
     std::cout << "speedup GPU tiled vs GPU naive x" << gpuN_time/gpuT_time << "\n" << std::endl;
 
 
-
-
 //GPU SPATIAL BINING COMPUTATION
 
 

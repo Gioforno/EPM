@@ -32,7 +32,7 @@ int cpu_calculate_z_slice(
                 float dy = (float)y - ps[i].y;
                 float dz = (float)z - ps[i].z;
 
-                float d = (dx*dx + dy*dy + dz*dz);
+                float d = sqrtf(dx*dx + dy*dy + dz*dz);
                 result += ps[i].q / d;
             }
 

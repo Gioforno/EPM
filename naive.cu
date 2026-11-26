@@ -23,7 +23,7 @@ void kernelMult(float* d_pmap, int width, int height, int z, Particle* d_ps, int
                 float dy = (float)row - d_ps[i].y;
                 float dz = (float)z - d_ps[i].z;
 
-                float d = (dx*dx + dy*dy + dz*dz);
+                float d = sqrtf(dx*dx + dy*dy + dz*dz);
                 result += d_ps[i].q / d;
             }
 
