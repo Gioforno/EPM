@@ -7,16 +7,19 @@
 #include <iostream>
 #include <cuda_runtime.h>
 
-void kernelKeys(
+void computeKey(Partcile* d_ps,int height, int width, int z, int n) {
+    if(i > n) return;
     
-) {
+    Particle p = d_ps[i];
 
-} 
-void kernelSort(
-    
-) {
+    int cx = floor(p.x/dimCell);
+    int cy = floor(p.y/dimCell);
+
+    keys[i] = (z*height + cy)*width+cx;
+    idx[i] = i;
 
 }
+
 void kernelReord(
     
 ) {
@@ -30,19 +33,6 @@ vodi kernelBuildRange(
 
 __global__ 
 void kernelMult(float* d_pmap, int width, int height, int z, Particle* d_ps, int n, int* keys, int* idx, int dimCell) {
-    int t_id = threadIdx.x * blockDim.x + threadIdx.x;
-
-    
-    Particle p = d_ps[t_id];
-
-    int cx = floor(p.x/dimCell);
-    int cy = floor(p.y/dimCell);
-
-    keys[i] = (z*height + cy)*width+cx;
-    idx[i] = i
-
-
-
 
 
 
@@ -53,7 +43,9 @@ void kernelMult(float* d_pmap, int width, int height, int z, Particle* d_ps, int
 
 
 
+void sortKeys(int* keys, int* idx) {
 
+}
 
 
 
@@ -83,12 +75,6 @@ float gpuC_calculate_z_slice(
     cudaMalloc(&d_ps, n*sizeof(Particle));
     cudaMemcpy(d_ps, ps, n*sizeof(Particle), cudaMemcpyHostToDevice);
 
-    int keys[n];
-    cudaMalloc(&keys, n*sizeof(int));
-
-    int idx[n];
-    cudaMalloc(&idx, n*sizeof(int));
-
     Particle* od_ps;   
     cudaMalloc(&od_ps, n*sizeof(Particle));
 
@@ -98,11 +84,9 @@ float gpuC_calculate_z_slice(
     float* d_pmap;   
     cudaMalloc(&d_pmap, (width*height) * sizeof(float));
 
-//first type kernel initialization and calls, that bins the particle
-    dim3 DimBlocks(256);
-    dim3 DimGrids(n + block -1)/block;
 
-//second type kernel initialization and calls, that compute dcs
+
+//kernel initialization
     dim3 DimBlock(16, 16);
     dim3 DimGrid((width  + DimBlock.x - 1) / DimBlock.x,
                 (height + DimBlock.y - 1) / DimBlock.y);
@@ -114,10 +98,12 @@ float gpuC_calculate_z_slice(
 
     cudaEventRecord(start);
 
-    kernelKeys<<DimGrids.DimBlocks>>()
-    kernelSort<<DimGrids.DimBlocks>>()
-    kernelReord<<DimGrids.DimBlocks>>()
-    kernelBuildRange<<DimGrids.DimBlocks>>()
+    createKeys(d_ps,height,width,z,n);
+
+    sortByKeys(keys, idx);
+
+    reordParticle()
+    createRanges()
 
     kernelMultCutoff<<<DimGrid,DimBlock>>>(d_pmap,width,height,z,d_ps,n,keys,idx,dimCell);
     cudaEventRecord(stop);
